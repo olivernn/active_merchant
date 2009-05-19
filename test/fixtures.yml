@@ -53,6 +53,11 @@ exact:
   login: "A00427-01" 
   password: testus
 
+hsbc_secure_epayment:
+  login: LOGIN
+  password: PASSWORD
+  client_id: CLIENT_ID
+
 ideal_ing_postbank:
   login: LOGIN
   password: PASSWORD
