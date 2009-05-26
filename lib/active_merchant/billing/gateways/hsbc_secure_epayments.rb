@@ -4,13 +4,12 @@ module ActiveMerchant #:nodoc:
       
       CARD_TYPE_MAPPINGS = { :visa => 1, :master => 2, :american_express => 8, :solo => 9, :switch => 10, :maestro => 14 }
       
-      COUNTRY_CODE_MAPPINGS = { 'CA' => 124, 'GB' => 826, 'US' => 840 }
+      COUNTRY_CODE_MAPPINGS = {
+        'CA' => 124, 'GB' => 826, 'US' => 840
+      }
       
       CURRENCY_MAPPINGS = {
-        'USD' => 840,
-        'GBP' => 826,
-        'CAD' => 124,
-        'EUR' => 978
+        'USD' => 840, 'GBP' => 826, 'CAD' => 124, 'EUR' => 978
       }
       
       HSBC_CVV_RESPONSE_MAPPINGS = {
@@ -44,7 +43,11 @@ module ActiveMerchant #:nodoc:
         :reserved   => "U"
       }
       
-      # HSBC can operate in many test modes ("Y" = yes, "N" = no, "R" = reject)
+      # HSBC can operate in many test modes:
+      #    "Y" = test; always return yes,
+      #    "N" = test; always return no,
+      #    "R" = reject,
+      #    "P" = production; LIVE TRANSACTIONS. DO NOT USE IN TEST MODE)
       class_inheritable_accessor :test_mode
       self.test_mode = "Y"
       
@@ -274,9 +277,9 @@ module ActiveMerchant #:nodoc:
         response[:mode]               = overview.elements['Mode'].text unless overview.elements['Mode'].blank?
         
         unless transaction.blank?
-          response[:avs_code]           = transaction.elements['CardProcResp/AvsRespCode'].text unless transaction.elements['CardProcResp/AvsRespCode'].blank?
-          response[:avs_display]        = transaction.elements['CardProcResp/AvsDisplay'].text unless transaction.elements['CardProcResp/AvsDisplay'].blank?
-          response[:cvv2_resp]           = transaction.elements['CardProcResp/Cvv2Resp'].text unless transaction.elements['CardProcResp/Cvv2Resp'].blank?
+          response[:avs_code]         = transaction.elements['CardProcResp/AvsRespCode'].text unless transaction.elements['CardProcResp/AvsRespCode'].blank?
+          response[:avs_display]      = transaction.elements['CardProcResp/AvsDisplay'].text unless transaction.elements['CardProcResp/AvsDisplay'].blank?
+          response[:cvv2_resp]        = transaction.elements['CardProcResp/Cvv2Resp'].text unless transaction.elements['CardProcResp/Cvv2Resp'].blank?
         end
         response
       end     
@@ -298,7 +301,8 @@ module ActiveMerchant #:nodoc:
             TRANSACTION_STATUS_MAPPINGS[:accepted]
           when 'void':
             TRANSACTION_STATUS_MAPPINGS[:void]
-        end
+        end &&
+        response
       end
       
       def message_from(response)
@@ -312,13 +316,19 @@ module ActiveMerchant #:nodoc:
           :code => case response[:avs_display]
             when "YY":
               "Y"
-            when "YN", "NY", "NN":
-              "N"
+            when "YN":
+              "A"
+            when "NY":
+              "W"
+            when "NN":
+              "C"
+            when "FF":
+              "G"
             else
-              "U"
-          end, 
-          :street_match => response[:avs_display][0..0],
-          :postal_match => response[:avs_display][1..1]
+              "R"
+          end
+          # :street_match => response[:avs_display][0],
+          # :postal_match => response[:avs_display][-1]
         }
       end
       

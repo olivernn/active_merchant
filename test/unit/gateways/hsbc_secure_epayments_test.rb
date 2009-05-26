@@ -71,15 +71,46 @@ class HsbcSecureEpaymentTest < Test::Unit::TestCase
     assert_nil response.params["auth_code"]
   end
   
-  def test_avs_result
-    @gateway.expects(:ssl_post).returns(failed_avs_result_no_matches)
-    
+  def test_avs_result_success
+    @gateway.expects(:ssl_post).returns(avs_result("YY"))
     assert response = @gateway.authorize(@amount, @credit_card, @options)
-    assert_failure response
-    assert response.test?
-    
+    assert_equal "Y", response.avs_result['code']
+    assert_equal "Y", response.avs_result['street_match']
+    assert_equal "Y", response.avs_result['postal_match']
+  end
+
+  def test_avs_result_fail_no_street_match
+    @gateway.expects(:ssl_post).returns(avs_result("NY"))
+    assert response = @gateway.authorize(@amount, @credit_card, @options)
+    assert_equal "W", response.avs_result['code']
+    assert_equal "N", response.avs_result['street_match']
+    assert_equal "Y", response.avs_result['postal_match']
+  end
+
+  def test_avs_result_fail_no_postal_match
+    @gateway.expects(:ssl_post).returns(avs_result("YN"))
+    assert response = @gateway.authorize(@amount, @credit_card, @options)
+    assert_equal "A", response.avs_result['code']
+    assert_equal "Y", response.avs_result['street_match']
+    assert_equal "N", response.avs_result['postal_match']
+  end
+
+  def test_avs_result_fail_no_match
+    @gateway.expects(:ssl_post).returns(avs_result("NN"))
+    assert response = @gateway.authorize(@amount, @credit_card, @options)
+    assert_equal "C", response.avs_result['code']
+    assert_equal "N", response.avs_result['street_match']
+    assert_equal "N", response.avs_result['postal_match']
   end
   
+  def test_avs_result_fail_no_postal_match
+    @gateway.expects(:ssl_post).returns(avs_result("YN"))
+    assert response = @gateway.authorize(@amount, @credit_card, @options)
+    assert_equal "A", response.avs_result['code']
+    assert_equal "Y", response.avs_result['street_match']
+    assert_equal "N", response.avs_result['postal_match']
+  end
+
   def test_cvv_result
     
   end
@@ -203,26 +234,26 @@ class HsbcSecureEpaymentTest < Test::Unit::TestCase
     XML
   end
   
-  def failed_avs_result_no_matches
+  def avs_result(code)
     <<-XML
     <?xml version="1.0" encoding="UTF-8"?>
     <EngineDocList>
-     <DocVersion DataType="String">1.0</DocVersion>
-     <EngineDoc>
-       <OrderFormDoc>
+      <DocVersion DataType="String">1.0</DocVersion>
+      <EngineDoc>
+        <OrderFormDoc>
+          <Transaction>
+            <CardProcResp>
+              <AvsDisplay>#{code}</AvsDisplay>
+            </CardProcResp>
+          </Transaction>
+        </OrderFormDoc>
         <Overview>
-          <AvsDisplay>NN</AvsDisplay>
+          <CcErrCode DataType="S32">1</CcErrCode>
+          <CcReturnMsg DataType="String">Approved.</CcReturnMsg>
+          <Mode DataType="String">Y</Mode>
+          <TransactionStatus DataType="String">A</TransactionStatus>
         </Overview>
-       </OrderFormDoc>
-      <Overview>
-       <AuthCode DataType="String">889350</AuthCode>
-       <CcErrCode DataType="S32">1</CcErrCode>
-       <CcReturnMsg DataType="String">Approved.</CcReturnMsg>
-       <Mode DataType="String">Y</Mode>
-       <TransactionId DataType="String">483e6382-7d13-3001-002b-0003bac00fc9</TransactionId>
-       <TransactionStatus DataType="String">A</TransactionStatus>
-      </Overview>
-     </EngineDoc>
+      </EngineDoc>
     </EngineDocList>
     XML
   end
