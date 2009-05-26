@@ -23,17 +23,6 @@ module ActiveMerchant #:nodoc:
         '7' => 'U'
       }
       
-      MESSAGES = {
-        'D'  =>  'Suspicious transaction',
-        'I'  =>  'Failed data validation check',
-        'M'  =>  'Match',
-        'N'  =>  'No Match',
-        'P'  =>  'Not Processed',
-        'S'  =>  'Should have been present',
-        'U'  =>  'Issuer unable to process request',
-        'X'  =>  'Card does not support verification'
-      }
-      
       TRANSACTION_STATUS_MAPPINGS = {
         :accepted   => "A",
         :declined   => "D",
