@@ -20,7 +20,7 @@ module ActiveMerchant #:nodoc:
         '4' => 'S',
         '5' => 'X',
         '6' => 'I',
-        '7' => 'P'
+        '7' => 'U'
       }
       
       MESSAGES = {
@@ -310,8 +310,7 @@ module ActiveMerchant #:nodoc:
       end
       
       def avs_code_from(response)
-        return {:code => 'U'} if response[:avs_display].blank?
-        
+        return {:code => 'U'} if response[:avs_display].blank?        
         {
           :code => case response[:avs_display]
             when "YY":
@@ -327,8 +326,6 @@ module ActiveMerchant #:nodoc:
             else
               "R"
           end
-          # :street_match => response[:avs_display][0],
-          # :postal_match => response[:avs_display][-1]
         }
       end
       

@@ -111,9 +111,61 @@ class HsbcSecureEpaymentTest < Test::Unit::TestCase
     assert_equal "N", response.avs_result['postal_match']
   end
 
-  def test_cvv_result
-    
+  def test_cvv_result_success
+    @gateway.expects(:ssl_post).returns(cvv_result("1"))
+    assert response = @gateway.authorize(@amount, @credit_card, @options)
+    assert_equal "M", response.cvv_result['code']
   end
+
+  def test_cvv_result_fail_no_match
+    @gateway.expects(:ssl_post).returns(cvv_result("2"))
+    assert response = @gateway.authorize(@amount, @credit_card, @options)
+    assert_equal "N", response.cvv_result['code']
+  end
+
+  def test_cvv_result_fail_not_processed
+    @gateway.expects(:ssl_post).returns(cvv_result("3"))
+    assert response = @gateway.authorize(@amount, @credit_card, @options)
+    assert_equal "P", response.cvv_result['code']
+  end
+  
+  def test_cvv_result_fail_not_present
+    @gateway.expects(:ssl_post).returns(cvv_result("4"))
+    assert response = @gateway.authorize(@amount, @credit_card, @options)
+    assert_equal "S", response.cvv_result['code']
+  end
+  
+  def test_cvv_result_fail_invalid
+    @gateway.expects(:ssl_post).returns(cvv_result("6"))
+    assert response = @gateway.authorize(@amount, @credit_card, @options)
+    assert_equal "I", response.cvv_result['code']
+  end
+  
+  def test_cvv_result_fail_not_supported
+    @gateway.expects(:ssl_post).returns(cvv_result("0"))
+    assert response = @gateway.authorize(@amount, @credit_card, @options)
+    assert_equal "X", response.cvv_result['code']
+
+    @gateway.expects(:ssl_post).returns(cvv_result("5"))
+    assert response = @gateway.authorize(@amount, @credit_card, @options)
+    assert_equal "X", response.cvv_result['code']
+  end
+  
+  def test_cvv_result_fail_issuer_unable_to_process
+    @gateway.expects(:ssl_post).returns(cvv_result("7"))
+    assert response = @gateway.authorize(@amount, @credit_card, @options)
+    assert_equal "U", response.cvv_result['code']
+  end
+  
+  # 'D'  =>  'Suspicious transaction',
+  #   'I'  =>  'Failed data validation check',
+  #   'M'  =>  'Match',
+  #   'N'  =>  'No Match',
+  #   'P'  =>  'Not Processed',
+  #   'S'  =>  'Should have been present',
+  #   'U'  =>  'Issuer unable to process request',
+  #   'X'  =>  'Card does not support verification'
+  #   
 
   private
   
@@ -258,7 +310,27 @@ class HsbcSecureEpaymentTest < Test::Unit::TestCase
     XML
   end
   
-  def failed_cvv_result
-    
+  def cvv_result(code)
+    <<-XML
+    <?xml version="1.0" encoding="UTF-8"?>
+    <EngineDocList>
+      <DocVersion DataType="String">1.0</DocVersion>
+      <EngineDoc>
+        <OrderFormDoc>
+          <Transaction>
+            <CardProcResp>
+              <Cvv2Resp>#{code}</Cvv2Resp>
+            </CardProcResp>
+          </Transaction>
+        </OrderFormDoc>
+        <Overview>
+          <CcErrCode DataType="S32">1</CcErrCode>
+          <CcReturnMsg DataType="String">Approved.</CcReturnMsg>
+          <Mode DataType="String">Y</Mode>
+          <TransactionStatus DataType="String">A</TransactionStatus>
+        </Overview>
+      </EngineDoc>
+    </EngineDocList>
+    XML
   end
 end
