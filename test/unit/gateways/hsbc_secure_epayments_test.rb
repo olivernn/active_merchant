@@ -35,6 +35,26 @@ class HsbcSecureEpaymentTest < Test::Unit::TestCase
     assert response = @gateway.authorize(@amount, @credit_card, @options)
     assert_failure response
     assert response.fraud_review?
+
+    @gateway.expects(:ssl_post).returns(avs_result("NN", "501"))
+    
+    assert response = @gateway.authorize(@amount, @credit_card, @options)
+    assert_failure response
+    assert response.fraud_review?
+
+    @gateway.expects(:ssl_post).returns(avs_result("NN", "502"))
+    
+    assert response = @gateway.authorize(@amount, @credit_card, @options)
+    assert_failure response
+    assert response.fraud_review?
+  end
+  
+  def test_fraudulent_transaction_cvv
+    @gateway.expects(:ssl_post).returns(cvv_result("NN", "1055"))
+    
+    assert response = @gateway.authorize(@amount, @credit_card, @options)
+    assert_failure response
+    assert response.fraud_review?
   end
   
   def test_successful_authorize

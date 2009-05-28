@@ -38,7 +38,7 @@ module ActiveMerchant #:nodoc:
       DECLINED_FRAUDULENT_VOIDED    = 501
       DECLINED_FRAUDULENT_REVIEW    = 502
       CVV_FAILURE                   = 1055
-      FRAUDULENT                    = [ DECLINED_FRAUDULENT, DECLINED_FRAUDULENT_VOIDED, DECLINED_FRAUDULENT_REVIEW ]
+      FRAUDULENT                    = [ DECLINED_FRAUDULENT, DECLINED_FRAUDULENT_VOIDED, DECLINED_FRAUDULENT_REVIEW, CVV_FAILURE ]
       
       # HSBC can operate in many test modes:
       #    "Y" = test; always return yes,
