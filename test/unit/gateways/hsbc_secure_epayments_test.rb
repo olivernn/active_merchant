@@ -4,7 +4,7 @@ class HsbcSecureEpaymentTest < Test::Unit::TestCase
   def setup
     ActiveMerchant::Billing::Base.mode = :test
     
-    @gateway = ActiveMerchant::Billing::HsbcSecureEpaymentGateway.new(
+    @gateway = ActiveMerchant::Billing::HsbcSecureEpaymentsGateway.new(
                  :login => 'login',
                  :password => 'password',
                  :client_id => 'client_id'
@@ -19,6 +19,22 @@ class HsbcSecureEpaymentTest < Test::Unit::TestCase
       :description => 'Store Purchase'
     }
     @authorization = '483e6382-7d13-3001-002b-0003bac00fc9'
+  end
+  
+  def test_invalid_credentials_rejected
+    @gateway.expects(:ssl_post).returns(auth_fail_response)
+    
+    assert response = @gateway.authorize(@amount, @credit_card, @options)
+    assert_failure response
+    assert_equal response.message, "Insufficient permissions to perform requested operation."
+  end
+  
+  def test_fraudulent_transaction_avs
+    @gateway.expects(:ssl_post).returns(avs_result("NN", "500"))
+    
+    assert response = @gateway.authorize(@amount, @credit_card, @options)
+    assert_failure response
+    assert response.fraud_review?
   end
   
   def test_successful_authorize
@@ -156,16 +172,6 @@ class HsbcSecureEpaymentTest < Test::Unit::TestCase
     assert response = @gateway.authorize(@amount, @credit_card, @options)
     assert_equal "U", response.cvv_result['code']
   end
-  
-  # 'D'  =>  'Suspicious transaction',
-  #   'I'  =>  'Failed data validation check',
-  #   'M'  =>  'Match',
-  #   'N'  =>  'No Match',
-  #   'P'  =>  'Not Processed',
-  #   'S'  =>  'Should have been present',
-  #   'U'  =>  'Issuer unable to process request',
-  #   'X'  =>  'Card does not support verification'
-  #   
 
   private
   
@@ -286,7 +292,7 @@ class HsbcSecureEpaymentTest < Test::Unit::TestCase
     XML
   end
   
-  def avs_result(code)
+  def avs_result(avs_display, cc_err_code = '1')
     <<-XML
     <?xml version="1.0" encoding="UTF-8"?>
     <EngineDocList>
@@ -295,12 +301,12 @@ class HsbcSecureEpaymentTest < Test::Unit::TestCase
         <OrderFormDoc>
           <Transaction>
             <CardProcResp>
-              <AvsDisplay>#{code}</AvsDisplay>
+              <AvsDisplay>#{avs_display}</AvsDisplay>
             </CardProcResp>
           </Transaction>
         </OrderFormDoc>
         <Overview>
-          <CcErrCode DataType="S32">1</CcErrCode>
+          <CcErrCode DataType="S32">#{cc_err_code}</CcErrCode>
           <CcReturnMsg DataType="String">Approved.</CcReturnMsg>
           <Mode DataType="String">Y</Mode>
           <TransactionStatus DataType="String">A</TransactionStatus>
@@ -310,7 +316,7 @@ class HsbcSecureEpaymentTest < Test::Unit::TestCase
     XML
   end
   
-  def cvv_result(code)
+  def cvv_result(cvv2_resp, cc_err_code = '1')
     <<-XML
     <?xml version="1.0" encoding="UTF-8"?>
     <EngineDocList>
@@ -319,17 +325,38 @@ class HsbcSecureEpaymentTest < Test::Unit::TestCase
         <OrderFormDoc>
           <Transaction>
             <CardProcResp>
-              <Cvv2Resp>#{code}</Cvv2Resp>
+              <Cvv2Resp>#{cvv2_resp}</Cvv2Resp>
             </CardProcResp>
           </Transaction>
         </OrderFormDoc>
         <Overview>
-          <CcErrCode DataType="S32">1</CcErrCode>
+          <CcErrCode DataType="S32">#{cc_err_code}</CcErrCode>
           <CcReturnMsg DataType="String">Approved.</CcReturnMsg>
           <Mode DataType="String">Y</Mode>
           <TransactionStatus DataType="String">A</TransactionStatus>
         </Overview>
       </EngineDoc>
+    </EngineDocList>
+    XML
+  end
+  
+  def auth_fail_response
+    <<-XML
+    <?xml version='1.0' encoding='UTF-8'?>
+    <EngineDocList>
+     <DocVersion DataType='String'>1.0</DocVersion>
+     <EngineDoc>
+      <MessageList>
+       <MaxSev DataType='S32'>6</MaxSev>
+       <Message>
+        <AdvisedAction DataType='S32'>16</AdvisedAction>
+        <Audience DataType='String'>Merchant</Audience>
+        <ResourceId DataType='S32'>7</ResourceId>
+        <Sev DataType='S32'>6</Sev>
+        <Text DataType='String'>Insufficient permissions to perform requested operation.</Text>
+       </Message>
+      </MessageList>
+     </EngineDoc>
     </EngineDocList>
     XML
   end

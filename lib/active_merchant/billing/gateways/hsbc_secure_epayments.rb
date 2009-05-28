@@ -1,6 +1,6 @@
 module ActiveMerchant #:nodoc:
   module Billing #:nodoc:
-    class HsbcSecureEpaymentGateway < Gateway
+    class HsbcSecureEpaymentsGateway < Gateway
       
       CARD_TYPE_MAPPINGS = { :visa => 1, :master => 2, :american_express => 8, :solo => 9, :switch => 10, :maestro => 14 }
       
@@ -32,6 +32,14 @@ module ActiveMerchant #:nodoc:
         :reserved   => "U"
       }
       
+      APPROVED                      = 1
+      DECLINED                      = 50
+      DECLINED_FRAUDULENT           = 500
+      DECLINED_FRAUDULENT_VOIDED    = 501
+      DECLINED_FRAUDULENT_REVIEW    = 502
+      CVV_FAILURE                   = 1055
+      FRAUDULENT                    = [ DECLINED_FRAUDULENT, DECLINED_FRAUDULENT_VOIDED, DECLINED_FRAUDULENT_REVIEW ]
+      
       # HSBC can operate in many test modes:
       #    "Y" = test; always return yes,
       #    "N" = test; always return no,
@@ -45,7 +53,7 @@ module ActiveMerchant #:nodoc:
       self.payment_mech_type = "CreditCard"
       
       # The countries the gateway supports merchants from as 2 digit ISO country codes
-      self.supported_countries = ['US', 'GB', 'CA']
+      self.supported_countries = ['US', 'GB']
       
       # The card types supported by the payment gateway
       self.supported_cardtypes = [:visa, :master, :american_express, :switch, :solo, :maestro]
@@ -98,13 +106,14 @@ module ActiveMerchant #:nodoc:
           :currency => self.class.default_currency
         }.merge(options)
         xml = build_request {|xml| insert_capture_data(xml, options)}
+        # puts xml
+        # puts "************************************************************"
         commit('capture', xml)
       end
       
       def void(authorization, options = {})
         options = {
-          :authorization => authorization,
-          :currency => self.class.default_currency
+          :authorization => authorization
         }.merge(options)
         xml = build_request {|xml| insert_void_data(xml, options)}
         commit('void', xml)
@@ -255,15 +264,24 @@ module ActiveMerchant #:nodoc:
         response = {}
         xml = REXML::Document.new(response_xml)
         
+        messages = xml.root.elements['EngineDoc/MessageList']
         overview = xml.root.elements['EngineDoc/Overview']
         transaction = xml.root.elements["EngineDoc/OrderFormDoc/Transaction"]
+        
+        unless messages.blank?
+          response[:severity]           = messages.elements['MaxSev'].text.to_i unless messages.elements['MaxSev'].blank?
+          response[:advised_action]     = messages.elements['Message/AdvisedAction'].text.to_i unless messages.elements['Message/AdvisedAction'].blank?
+          response[:error_message]      = messages.elements['Message/Text'].text unless messages.elements['Message/Text'].blank?
+        end
 
-        response[:return_code]        = overview.elements['CcErrCode'].text.to_i unless overview.elements['CcErrCode'].blank?
-        response[:return_message]     = overview.elements['CcReturnMsg'].text unless overview.elements['CcReturnMsg'].blank?
-        response[:transaction_id]     = overview.elements['TransactionId'].text unless overview.elements['TransactionId'].blank?
-        response[:auth_code]          = overview.elements['AuthCode'].text unless overview.elements['AuthCode'].blank?
-        response[:transaction_status] = overview.elements['TransactionStatus'].text unless overview.elements['TransactionStatus'].blank?
-        response[:mode]               = overview.elements['Mode'].text unless overview.elements['Mode'].blank?
+        unless overview.blank?
+          response[:return_code]        = overview.elements['CcErrCode'].text.to_i unless overview.elements['CcErrCode'].blank?
+          response[:return_message]     = overview.elements['CcReturnMsg'].text unless overview.elements['CcReturnMsg'].blank?
+          response[:transaction_id]     = overview.elements['TransactionId'].text unless overview.elements['TransactionId'].blank?
+          response[:auth_code]          = overview.elements['AuthCode'].text unless overview.elements['AuthCode'].blank?
+          response[:transaction_status] = overview.elements['TransactionStatus'].text unless overview.elements['TransactionStatus'].blank?
+          response[:mode]               = overview.elements['Mode'].text unless overview.elements['Mode'].blank?
+        end
         
         unless transaction.blank?
           response[:avs_code]         = transaction.elements['CardProcResp/AvsRespCode'].text unless transaction.elements['CardProcResp/AvsRespCode'].blank?
@@ -277,12 +295,14 @@ module ActiveMerchant #:nodoc:
         options = {}
         options[:authorization] = response[:transaction_id]
         options[:test] = response[:mode].blank? || response[:mode] != "P"
+        options[:fraud_review] = FRAUDULENT.include?(response[:return_code])
         options[:cvv_result] = HSBC_CVV_RESPONSE_MAPPINGS[response[:cvv2_resp]] unless response[:cvv2_resp].blank?
         options[:avs_result] = avs_code_from(response)
         options
       end
       
       def success_from(action, response)
+        response[:return_code] == APPROVED &&
         response[:transaction_id] &&
         response[:auth_code] &&
         response[:transaction_status] == case action
@@ -290,12 +310,14 @@ module ActiveMerchant #:nodoc:
             TRANSACTION_STATUS_MAPPINGS[:accepted]
           when 'void':
             TRANSACTION_STATUS_MAPPINGS[:void]
+          else
+            nil
         end &&
         response
       end
       
       def message_from(response)
-        response[:return_message]
+        response[:return_message] || response[:error_message]
       end
       
       def avs_code_from(response)

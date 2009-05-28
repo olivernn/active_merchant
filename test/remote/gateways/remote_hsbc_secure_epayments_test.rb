@@ -5,7 +5,7 @@ class RemoteHsbcSecureEpaymentTest < Test::Unit::TestCase
   def setup
     ActiveMerchant::Billing::Base.mode = :test
 
-    @gateway = HsbcSecureEpaymentGateway.new(fixtures(:hsbc_secure_epayment))
+    @gateway = HsbcSecureEpaymentsGateway.new(fixtures(:hsbc_secure_epayment))
     
     @amount = 100
     @credit_card = credit_card('4000100011112224')
@@ -20,7 +20,7 @@ class RemoteHsbcSecureEpaymentTest < Test::Unit::TestCase
   end
   
   def test_successful_purchase
-    ActiveMerchant::Billing::HsbcSecureEpaymentGateway::test_mode = "Y"
+    ActiveMerchant::Billing::HsbcSecureEpaymentsGateway::test_mode = "Y"
 
     assert response = @gateway.purchase(@amount, @credit_card, @options)
     assert_success response
@@ -31,7 +31,7 @@ class RemoteHsbcSecureEpaymentTest < Test::Unit::TestCase
   end
 
   def test_unsuccessful_purchase
-    ActiveMerchant::Billing::HsbcSecureEpaymentGateway::test_mode = "N"
+    ActiveMerchant::Billing::HsbcSecureEpaymentsGateway::test_mode = "N"
     
     assert response = @gateway.purchase(@amount, @declined_card, @options)
     assert_failure response
@@ -43,12 +43,11 @@ class RemoteHsbcSecureEpaymentTest < Test::Unit::TestCase
   end
   
   def test_authorize_and_capture
-    amount = @amount
-    assert auth = @gateway.authorize(amount, @credit_card, @options)
+    assert auth = @gateway.authorize(@amount, @credit_card, @options)
     assert_success auth
-    assert_equal 'Success', auth.message
+    assert_equal 'Approved.', auth.message
     assert auth.authorization
-    assert capture = @gateway.capture(amount, auth.authorization)
+    assert capture = @gateway.capture(@amount, auth.authorization, @options)
     assert_success capture
   end
   
@@ -59,13 +58,13 @@ class RemoteHsbcSecureEpaymentTest < Test::Unit::TestCase
   end
   
   def test_invalid_login
-    gateway = HsbcSecureEpaymentGateway.new(
+    gateway = HsbcSecureEpaymentsGateway.new(
                 :login => 'login',
                 :password => 'password',
                 :client_id => 'client_id'
               )
     assert response = gateway.purchase(@amount, @credit_card, @options)
     assert_failure response
-    assert_equal 'REPLACE WITH FAILURE MESSAGE', response.message
+    assert_equal 'System error', response.message
   end
 end
