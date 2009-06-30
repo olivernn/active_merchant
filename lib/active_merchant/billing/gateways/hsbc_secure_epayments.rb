@@ -303,8 +303,8 @@ module ActiveMerchant #:nodoc:
       
       def success_from(action, response)
         response[:return_code] == APPROVED &&
-        response[:transaction_id] &&
-        response[:auth_code] &&
+        !response[:transaction_id].nil? &&
+        !response[:auth_code].nil? &&
         response[:transaction_status] == case action
           when 'authorize', 'purchase', 'capture':
             TRANSACTION_STATUS_MAPPINGS[:accepted]
@@ -312,8 +312,7 @@ module ActiveMerchant #:nodoc:
             TRANSACTION_STATUS_MAPPINGS[:void]
           else
             nil
-        end &&
-        response
+        end
       end
       
       def message_from(response)
