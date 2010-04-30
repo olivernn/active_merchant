@@ -76,6 +76,24 @@ class HsbcSecureEpaymentTest < Test::Unit::TestCase
     assert response.test?
   end
 
+  def test_successful_void
+    @gateway.expects(:ssl_post).returns(successful_void_response)
+
+    # copied from the successful response below
+    authcode = '4bd93722-c8b4-3003-002a-0003bac62f71'
+
+    assert_success @gateway.void(authcode, :currency => 'GBP', :money => 1)
+  end
+
+  def test_unsuccessful_void
+    @gateway.expects(:ssl_post).returns(failed_void_response)
+
+    # copied from the successful response below
+    authcode = '4bd93722-c8b4-3003-002a-0003bac62f71'
+
+    assert_failure @gateway.void(authcode, :currency => 'GBP', :money => 1)
+  end
+
   def test_successful_capture
     @gateway.expects(:ssl_post).returns(successful_capture_response)
     
@@ -377,6 +395,132 @@ class HsbcSecureEpaymentTest < Test::Unit::TestCase
        </Message>
       </MessageList>
      </EngineDoc>
+    </EngineDocList>
+    XML
+  end
+
+  def successful_void_response
+    <<-XML
+    <?xml version="1.0" encoding="UTF-8"?>
+    <EngineDocList>
+      <DocVersion DataType="String">1.0</DocVersion>
+      <EngineDoc>
+        <OrderFormDoc>
+          <Consumer>
+            <PaymentMech>
+              <CreditCard>
+                <ExchangeType DataType="S32">1</ExchangeType>
+              </CreditCard>
+              <Type DataType="String">CreditCard</Type>
+            </PaymentMech>
+          </Consumer>
+          <DateTime DataType="DateTime">1272558106928</DateTime>
+          <Id DataType="String">4bd93722-c8b4-3003-002a-0003bac62f71</Id>
+          <Mode DataType="String">Y</Mode>
+          <Transaction>
+            <AuthCode DataType="String">506017</AuthCode>
+            <CardProcResp>
+              <CcErrCode DataType="S32">1</CcErrCode>
+              <CcReturnMsg DataType="String">Approved.</CcReturnMsg>
+              <ProcReturnCode DataType="String">1</ProcReturnCode>
+              <ProcReturnMsg DataType="String">Approved</ProcReturnMsg>
+              <Status DataType="String">1</Status>
+            </CardProcResp>
+            <CardholderPresentCode DataType="S32">7</CardholderPresentCode>
+            <ChargeTypeCode DataType="String">S</ChargeTypeCode>
+            <CurrentTotals>
+              <Totals>
+                <Total DataType="Money" Currency="826">1</Total>
+              </Totals>
+            </CurrentTotals>
+            <Id DataType="String">4bd93722-c8b5-3003-002a-0003bac62f71</Id>
+            <InputEnvironment DataType="S32">4</InputEnvironment>
+            <ReviewPendFlag DataType="S32">0</ReviewPendFlag>
+            <SecurityIndicator DataType="S32">7</SecurityIndicator>
+            <TerminalInputCapability DataType="S32">1</TerminalInputCapability>
+            <Type DataType="String">Void</Type>
+          </Transaction>
+        </OrderFormDoc>
+        <Overview>
+          <AuthCode DataType="String">506017</AuthCode>
+          <CcErrCode DataType="S32">1</CcErrCode>
+          <CcReturnMsg DataType="String">Approved.</CcReturnMsg>
+          <DateTime DataType="DateTime">1272558106928</DateTime>
+          <Mode DataType="String">Y</Mode>
+          <OrderId DataType="String">4bd93722-c8b4-3003-002a-0003bac62f71</OrderId>
+          <TransactionId DataType="String">4bd93722-c8b5-3003-002a-0003bac62f71</TransactionId>
+          <TransactionStatus DataType="String">A</TransactionStatus>
+        </Overview>
+      </EngineDoc>
+    </EngineDocList>
+    XML
+  end
+
+  def failed_void_response
+    <<-XML
+    <?xml version="1.0" encoding="UTF-8"?>
+    <EngineDocList>
+      <DocVersion DataType="String">1.0</DocVersion>
+      <EngineDoc>
+        <ContentType DataType="String">OrderFormDoc</ContentType>
+        <DocumentId DataType="String">4bd93722-c978-3003-002a-0003bac62f71</DocumentId>
+        <Instructions>
+          <Pipeline DataType="String">Payment</Pipeline>
+        </Instructions>
+        <MessageList>
+          <MaxSev DataType="S32">6</MaxSev>
+          <Message>
+            <AdvisedAction DataType="S32">16</AdvisedAction>
+            <Audience DataType="String">Merchant</Audience>
+            <Component DataType="String">CcxOcc</Component>
+            <ContextId DataType="String">PaymentDba</ContextId>
+            <DataState DataType="S32">3</DataState>
+            <FileLine DataType="S32">498</FileLine>
+            <FileName DataType="String">CcxOccExecute.cpp</FileName>
+            <FileTime DataType="String">15:18:59Oct 13 2007</FileTime>
+            <ResourceId DataType="S32">13</ResourceId>
+            <Sev DataType="S32">6</Sev>
+            <Text DataType="String">The combination of transaction 'auth_response.authorization' and processing mode 'Y' was not found.</Text>
+          </Message>
+        </MessageList>
+        <OrderFormDoc>
+          <Consumer>
+            <PaymentMech>
+              <Type DataType="String">CreditCard</Type>
+            </PaymentMech>
+          </Consumer>
+          <DateTime DataType="DateTime">1272558214310</DateTime>
+          <Mode DataType="String">Y</Mode>
+          <Transaction>
+            <CurrentTotals>
+              <Totals>
+                <Total DataType="Money" Currency="826">1</Total>
+              </Totals>
+            </CurrentTotals>
+            <Id DataType="String">auth_response.authorization</Id>
+            <Type DataType="String">Void</Type>
+          </Transaction>
+        </OrderFormDoc>
+        <Overview>
+          <CcErrCode DataType="S32">1067</CcErrCode>
+          <CcReturnMsg DataType="String">System error.</CcReturnMsg>
+          <DateTime DataType="DateTime">1272558214310</DateTime>
+          <Mode DataType="String">Y</Mode>
+          <Notice DataType="String">The combination of transaction 'auth_response.authorization' and processing mode 'Y' was not found.</Notice>
+          <TransactionId DataType="String">auth_response.authorization</TransactionId>
+          <TransactionStatus DataType="String">E</TransactionStatus>
+        </Overview>
+        <User>
+          <Alias DataType="String">UK55706431GBP</Alias>
+          <ClientId DataType="S32">33904</ClientId>
+          <EffectiveAlias DataType="String">UK55706431GBP</EffectiveAlias>
+          <EffectiveClientId DataType="S32">33904</EffectiveClientId>
+          <Name DataType="String">ab123456</Name>
+          <Password DataType="String">c[P5jA.6R9&gt;xOi!8</Password>
+        </User>
+      </EngineDoc>
+      <TimeIn DataType="DateTime">1272558214306</TimeIn>
+      <TimeOut DataType="DateTime">1272558214319</TimeOut>
     </EngineDocList>
     XML
   end

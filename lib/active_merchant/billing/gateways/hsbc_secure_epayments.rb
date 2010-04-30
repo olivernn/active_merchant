@@ -306,10 +306,8 @@ module ActiveMerchant #:nodoc:
         !response[:transaction_id].nil? &&
         !response[:auth_code].nil? &&
         response[:transaction_status] == case action
-          when 'authorize', 'purchase', 'capture':
+          when 'authorize', 'purchase', 'capture', 'void':
             TRANSACTION_STATUS_MAPPINGS[:accepted]
-          when 'void':
-            TRANSACTION_STATUS_MAPPINGS[:void]
           else
             nil
         end

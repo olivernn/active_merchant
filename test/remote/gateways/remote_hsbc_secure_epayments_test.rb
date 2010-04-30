@@ -50,7 +50,30 @@ class RemoteHsbcSecureEpaymentTest < Test::Unit::TestCase
     assert capture = @gateway.capture(@amount, auth.authorization, @options)
     assert_success capture
   end
-  
+
+  def test_authorize_and_void
+    ActiveMerchant::Billing::HsbcSecureEpaymentsGateway::test_mode = "Y"
+
+    assert auth = @gateway.authorize(@amount, @credit_card, @options)
+    assert_success auth
+    assert_equal 'Approved.', auth.message
+    assert auth.authorization
+    assert void = @gateway.void(auth.authorization, :currency => 'GBP', :money => @amount)
+    assert_success void
+  end
+
+  def test_authorize_and_failed_void
+    assert auth = @gateway.authorize(@amount, @credit_card, @options)
+    assert_success auth
+    assert_equal 'Approved.', auth.message
+    assert auth.authorization
+
+    ActiveMerchant::Billing::HsbcSecureEpaymentsGateway::test_mode = "N"
+
+    assert void = @gateway.void(auth.authorization, :currency => 'GBP', :money => @amount)
+    assert_failure void
+  end
+
   def test_failed_capture
     assert response = @gateway.capture(@amount, '')
     assert_failure response
