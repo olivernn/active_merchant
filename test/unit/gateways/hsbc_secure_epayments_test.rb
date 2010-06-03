@@ -62,9 +62,10 @@ class HsbcSecureEpaymentTest < Test::Unit::TestCase
     
     assert response = @gateway.authorize(@amount, @credit_card, @options)
     assert_success response
-    
+
     # Replace with authorization number from the successful response
     assert_equal '483e6382-7d13-3001-002b-0003bac00fc9', response.authorization
+    assert_equal '483e6382-7d12-3001-002b-0003bac00fc9', response.order_id
     assert response.test?
   end
 

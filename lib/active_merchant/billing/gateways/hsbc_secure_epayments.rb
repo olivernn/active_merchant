@@ -278,6 +278,7 @@ module ActiveMerchant #:nodoc:
           response[:return_code]        = overview.elements['CcErrCode'].text.to_i unless overview.elements['CcErrCode'].blank?
           response[:return_message]     = overview.elements['CcReturnMsg'].text unless overview.elements['CcReturnMsg'].blank?
           response[:transaction_id]     = overview.elements['TransactionId'].text unless overview.elements['TransactionId'].blank?
+          response[:order_id]     = overview.elements['OrderId'].text unless overview.elements['OrderId'].blank?
           response[:auth_code]          = overview.elements['AuthCode'].text unless overview.elements['AuthCode'].blank?
           response[:transaction_status] = overview.elements['TransactionStatus'].text unless overview.elements['TransactionStatus'].blank?
           response[:mode]               = overview.elements['Mode'].text unless overview.elements['Mode'].blank?
@@ -294,6 +295,7 @@ module ActiveMerchant #:nodoc:
       def options_from(response)
         options = {}
         options[:authorization] = response[:transaction_id]
+        options[:order_id] = response[:order_id]
         options[:test] = response[:mode].blank? || response[:mode] != "P"
         options[:fraud_review] = FRAUDULENT.include?(response[:return_code])
         options[:cvv_result] = HSBC_CVV_RESPONSE_MAPPINGS[response[:cvv2_resp]] unless response[:cvv2_resp].blank?
